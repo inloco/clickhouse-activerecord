@@ -1,0 +1,13 @@
+{
+  "event": "security_override",
+  "timestamp": "2026-03-16T15:04:48.241295",
+  "user": "ottony.costa@incognia.com",
+  "branch": "master",
+  "files": [
+    "README.md"
+  ],
+  "detectors": [
+    "Gitleaks"
+  ],
+  "secrets_found": 1
+}
