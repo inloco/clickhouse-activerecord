@@ -28,6 +28,7 @@ default: &default
   port: 8123
   username: username
   password: password
+  http_auth: x_clickhouse_headers # optional, supports basic and x_clickhouse_headers
   ssl: true # optional for using ssl connection
   debug: true # use for showing in to log technical information
   migrations_paths: db/clickhouse # optional, default: db/migrate_clickhouse
@@ -49,6 +50,27 @@ class ActionView < ActiveRecord::Base
   )
 end
 ```
+
+### HTTP authentication mode
+
+By default, the adapter sends `user` and `password` as URL parameters.
+You can switch to header-based HTTP auth using `http_auth`:
+
+```yml
+clickhouse:
+  adapter: clickhouse
+  host: localhost
+  port: 8123
+  database: my_db
+  username: app_user
+  password: secret
+  http_auth: x_clickhouse_headers # or basic
+```
+
+Use YAML string values: `http_auth: basic` or `http_auth: x_clickhouse_headers`. Both strings and Ruby symbols are accepted internally.
+
+- `http_auth: basic` sends `Authorization: Basic ...` and keeps `database` in URL params.
+- `http_auth: x_clickhouse_headers` sends `X-ClickHouse-User`, `X-ClickHouse-Key`, and `X-ClickHouse-Database` headers.
 
 ## Usage in Rails
 
@@ -297,6 +319,38 @@ Testing github actions:
 
 ```bash
 act
+```
+
+### Run locally
+
+1. Start ClickHouse (single node):
+
+```bash
+docker compose -f .docker/docker-compose.yml up -d
+```
+
+2. Run single-node specs:
+
+```bash
+bin/test-single
+```
+
+If your local workflow expects `bin/single_test`, use the same command format as `bin/test-single`:
+
+```bash
+CLICKHOUSE_PORT=18123 CLICKHOUSE_DATABASE=default bundle exec rspec spec/single --format progress
+```
+
+3. Start ClickHouse cluster:
+
+```bash
+docker compose -f .docker/docker-compose.cluster.yml up -d
+```
+
+4. Run cluster specs:
+
+```bash
+CLICKHOUSE_PORT=28123 CLICKHOUSE_DATABASE=default CLICKHOUSE_CLUSTER=test_cluster bundle exec rspec spec/cluster --format progress
 ```
 
 ## Contributing

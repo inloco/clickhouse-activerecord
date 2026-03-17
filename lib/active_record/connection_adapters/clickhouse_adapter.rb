@@ -31,6 +31,13 @@ module ActiveRecord
           raise ArgumentError, 'No database specified. Missing argument: database.'
         end
 
+        if config[:http_auth]
+          unless ConnectionAdapters::Clickhouse::SchemaStatements::HTTP_AUTH_TYPES.include?(config[:http_auth]&.to_sym)
+            raise ArgumentError, "Unknown :http_auth mode #{config[:http_auth].inspect}. " \
+              + "Use one of #{ConnectionAdapters::Clickhouse::SchemaStatements::HTTP_AUTH_TYPES}."
+          end
+        end
+
         ConnectionAdapters::ClickhouseAdapter.new(config)
       end
     end
@@ -139,6 +146,8 @@ module ActiveRecord
         @debug = @config[:debug] || false
 
         @prepared_statements = false
+
+        @http_auth = @config[:http_auth]&.to_sym
 
         connect
       end
@@ -311,7 +320,9 @@ module ActiveRecord
       def create_database(name)
         sql = apply_cluster "CREATE DATABASE #{quote_table_name(name)}"
         log_with_debug(sql, adapter_name) do
-          res = @connection.post("/?#{@connection_config.except(:database).to_param}", sql)
+          request_params = build_request_params(include_database: false)
+          request_headers = build_request_headers(include_database: false)
+          res = @connection.post("/?#{request_params.to_param}", sql, request_headers)
           process_response(res, DEFAULT_RESPONSE_FORMAT)
         end
       end
@@ -365,7 +376,9 @@ module ActiveRecord
       def drop_database(name) #:nodoc:
         sql = apply_cluster "DROP DATABASE IF EXISTS #{quote_table_name(name)}"
         log_with_debug(sql, adapter_name) do
-          res = @connection.post("/?#{@connection_config.except(:database).to_param}", sql)
+          request_params = build_request_params(include_database: false)
+          request_headers = build_request_headers(include_database: false)
+          res = @connection.post("/?#{request_params.to_param}", sql, request_headers)
           process_response(res, DEFAULT_RESPONSE_FORMAT)
         end
       end

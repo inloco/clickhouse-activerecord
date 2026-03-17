@@ -1,11 +1,16 @@
 # frozen_string_literal: true
 
+require 'base64'
 require 'clickhouse-activerecord/version'
 
 module ActiveRecord
   module ConnectionAdapters
     module Clickhouse
       module SchemaStatements
+        HTTP_AUTH_BASIC = :basic.freeze
+        HTTP_AUTH_X_HEADERS = :x_clickhouse_headers.freeze
+        HTTP_AUTH_TYPES = [HTTP_AUTH_BASIC, HTTP_AUTH_X_HEADERS].freeze
+
         DEFAULT_RESPONSE_FORMAT = 'JSONCompactEachRowWithNamesAndTypes'.freeze
 
         DB_EXCEPTION_REGEXP = /\ACode:\s+\d+\.\s+DB::Exception:/.freeze
@@ -177,13 +182,44 @@ module ActiveRecord
         # @return [Net::HTTPResponse]
         def request(sql, format = nil, settings = {})
           formatted_sql = apply_format(sql, format)
-          request_params = @connection_config || {}
+          request_params = build_request_params(settings: settings)
+          request_headers = build_request_headers
           @lock.synchronize do
-            @connection.post("/?#{request_params.merge(settings).to_param}", formatted_sql, {
-              'User-Agent' => "Clickhouse ActiveRecord #{ClickhouseActiverecord::VERSION}",
-              'Content-Type' => 'application/x-www-form-urlencoded',
-            })
+            @connection.post("/?#{request_params.to_param}", formatted_sql, request_headers)
           end
+        end
+
+        def build_request_params(settings: {}, include_database: true)
+          request_params = @connection_config || {}
+          request_params = request_params.except(:database) unless include_database
+
+          case @http_auth
+          when HTTP_AUTH_BASIC
+            request_params = request_params.except(:user, :password)
+          when HTTP_AUTH_X_HEADERS
+            request_params = request_params.except(:user, :password, :database)
+          end
+
+          request_params.merge(settings)
+        end
+
+        def build_request_headers(include_database: true)
+          request_headers = {
+            'User-Agent' => "Clickhouse ActiveRecord #{ClickhouseActiverecord::VERSION}",
+            'Content-Type' => 'application/x-www-form-urlencoded',
+          }
+
+          case @http_auth
+          when HTTP_AUTH_BASIC
+            credentials = Base64.strict_encode64("#{@config[:username]}:#{@config[:password]}")
+            request_headers['Authorization'] = "Basic #{credentials}"
+          when HTTP_AUTH_X_HEADERS
+            request_headers['X-ClickHouse-User'] = @config[:username].to_s if @config[:username]
+            request_headers['X-ClickHouse-Key'] = @config[:password].to_s if @config[:password]
+            request_headers['X-ClickHouse-Database'] = @config[:database].to_s if include_database && @config[:database]
+          end
+
+          request_headers
         end
 
         def apply_format(sql, format)

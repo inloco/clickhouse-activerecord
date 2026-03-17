@@ -1,3 +1,7 @@
+### Version 1.3.2 (Mar 11, 2026)
+* Add `http_auth` support for ClickHouse HTTP authentication via `:basic` and `:x_clickhouse_headers`
+* Add support for sending `X-ClickHouse-Database` when using `:x_clickhouse_headers`
+
 ### Version 1.1.2 (Aug 27, 2024)
 * 🎉 Support for rails 7.2 #156
 * Add method `views` for getting table `View` list in #152
