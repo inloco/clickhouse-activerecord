@@ -1,0 +1,13 @@
+{
+  "event": "security_override",
+  "timestamp": "2026-03-19T17:38:11.693838",
+  "user": "ottony.costa@incognia.com",
+  "branch": "fix/http-auth-v1.6.7",
+  "files": [
+    "README.md"
+  ],
+  "detectors": [
+    "Gitleaks"
+  ],
+  "secrets_found": 1
+}
